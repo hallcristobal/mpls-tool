@@ -3,14 +3,20 @@ use std::fmt::{Debug, Display};
 use super::FromBinary;
 
 #[repr(C, packed)]
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct MplsFileHeader {
     magic_string: [u8; 8],     // 0x0
     pub playlist_offset: u32,  // 0x8
     pub chapters_offset: u32,  // 0xC
     pub extnsions_offset: u32, // 0x10
-    _unk_0: [u8; 0x24],        // 0x14
-    pub misc_flags: u8,        // 0x38
+    _unk_0: [u8; 20],
+    _playlist_len: u32,
+    _unk_1: u8,
+    _playback_type: u8,
+    _playback_count: u16,
+    _operation_mask: [u8; 8],
+    pub misc_flags: u8, // 0x38
+    _unk_2: u8,
 }
 
 impl MplsFileHeader {
@@ -19,19 +25,6 @@ impl MplsFileHeader {
     }
     pub fn mvc_base_view_r(&self) -> bool {
         (self.misc_flags & (1 << 4)) == 1
-    }
-}
-
-impl Default for MplsFileHeader {
-    fn default() -> Self {
-        Self {
-            magic_string: Default::default(),
-            playlist_offset: Default::default(),
-            chapters_offset: Default::default(),
-            extnsions_offset: Default::default(),
-            _unk_0: [0; 0x24],
-            misc_flags: Default::default(),
-        }
     }
 }
 

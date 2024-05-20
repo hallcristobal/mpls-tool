@@ -111,7 +111,7 @@ impl FriendlyClipHeader {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct StreamClip {
     pub angle_index: i32,
     pub name: String,
@@ -128,16 +128,25 @@ pub struct StreamClip {
     pub packet_seconds: f64,
     pub chapters: Vec<f64>,
     // TSStreamFile StreamFile = null;
+    pub stream_file: String,
     // TSStreamClipFile StreamClipFile = null;
+    pub stream_clip_file: String,
 }
 
 impl StreamClip {
-    pub fn new(header: &ClipHeader, total_length: f64) -> Self {
+    pub fn new(
+        header: &ClipHeader,
+        total_length: f64,
+        stream_file: &str,
+        stream_clip_file: &str,
+    ) -> Self {
         let mut sc = StreamClip {
             name: header.stream_file_name(),
             time_in: header.time_in(),
             time_out: header.time_out(),
             relative_time_in: total_length,
+            stream_file: stream_file.to_owned(),
+            stream_clip_file: stream_clip_file.to_owned(),
             ..Default::default()
         };
 
