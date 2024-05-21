@@ -20,6 +20,17 @@ pub struct MplsFileHeader {
 }
 
 impl MplsFileHeader {
+    pub const fn expected_size() -> u32 {
+        58
+    }
+
+    pub fn offsets(&self) -> (u32, u32, u32) {
+        (
+            self.playlist_offset,
+            self.chapters_offset,
+            self.extnsions_offset,
+        )
+    }
     pub fn magic_string(&self) -> String {
         String::from_utf8_lossy(&self.magic_string).to_string()
     }

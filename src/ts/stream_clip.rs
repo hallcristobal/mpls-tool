@@ -5,6 +5,45 @@ use std::{
 
 use super::FromBinary;
 
+#[derive(Debug)]
+pub struct Duration {
+    hours: u8,
+    minutes: u8,
+    seconds: u8,
+    fracs: u32,
+}
+
+impl Display for Duration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{:0width$}:{:0width$}.{}",
+            self.hours,
+            self.minutes,
+            self.seconds,
+            self.fracs,
+            width = 2
+        )
+    }
+}
+
+impl Duration {
+    pub fn from_secs_f64(secs: f64) -> Self {
+        let std_dur = std::time::Duration::from_secs_f64(secs);
+        let fracs = std_dur.subsec_nanos();
+        let seconds = secs.floor() as u64;
+        let hours = seconds / 60 / 60;
+        let minutes = seconds / 60 % 60;
+        let secs = seconds % 60;
+        Duration {
+            hours: hours as u8,
+            minutes: minutes as u8,
+            seconds: secs as u8,
+            fracs,
+        }
+    }
+}
+
 #[repr(C, packed)]
 #[derive(Default, Clone)]
 pub struct ClipHeader {
@@ -56,6 +95,11 @@ impl ClipHeader {
             self.out_time
         };
         out_time as f64 / 45_000.0
+    }
+
+    pub fn duration(&self) -> Duration {
+        let seconds = self.time_out() - self.time_in();
+        Duration::from_secs_f64(seconds)
     }
 }
 

@@ -6,3 +6,9 @@ edition = "2021"
 [dependencies]
 paste = "1.0.15"
 termcolor = "1.4.1"
+
+[workspace]
+members = ["runner", "wasm"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]

@@ -2,15 +2,25 @@
 use std::io::Read;
 
 macro_rules! log {
-    ($name:literal, $fmt:expr, $($arg:tt)*) => {
-        crate::log::key_val_print(Some(crate::log::Color::Cyan), $name, &format!($fmt, $($arg)*));
+    ($name:expr, $fmt:expr, $($arg:tt)*) => {
+        crate::log::key_val_print(Some(crate::log::Color::Cyan), $name, &format!($fmt, $($arg)*))
+    };
+}
+macro_rules! error {
+    ($name:expr, $fmt:expr, $($arg:tt)*) => {
+        crate::log::key_val_print(Some(crate::log::Color::Red), $name, &format!($fmt, $($arg)*))
+    };
+}
+macro_rules! info {
+    ($name:expr, $fmt:expr, $($arg:tt)*) => {
+        crate::log::key_val_print(Some(crate::log::Color::Yellow), $name, &format!($fmt, $($arg)*))
     };
 }
 
 macro_rules! position {
     ($ident:ident) => {
         crate::log::key_val_print(
-            Some(crate::log::Color::Yellow),
+            Some(crate::log::Color::Magenta),
             "Reader Position",
             &format!("{:X}", $ident.stream_position()?),
         );
