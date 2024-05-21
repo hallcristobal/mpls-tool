@@ -12,6 +12,7 @@ use crate::{
         plist::PlaylistHeader,
         stream::{TSAudioStream, TSGraphicsStream, TSTextStream, TSVideoStream},
         stream_clip::{ClipHeader, StreamClip},
+        streams_header::StreamsHeader,
         FromBinary,
     },
 };
@@ -125,37 +126,34 @@ impl Parser {
             log!("multi_angle", "{}", stream_header.multi_angle());
         }
 
-        let stream_info_len = read_i16(reader)?;
-        reader.seek(SeekFrom::Current(2))?;
-        let stream_count_video = read_u8(reader)?;
-        let stream_count_audio = read_u8(reader)?;
-        let stream_count_pg = read_u8(reader)?;
-        let stream_count_ig = read_u8(reader)?;
-        let stream_count_secondary_audio = read_u8(reader)?;
-        let stream_count_secondary_video = read_u8(reader)?;
-        let stream_count_pip = read_u8(reader)?;
-        reader.seek(SeekFrom::Current(5))?;
-
-        log!("stream_info_len", "{}", stream_info_len);
-        log!("stream_count_video", "{}", stream_count_video);
-        log!("stream_count_audio", "{}", stream_count_audio);
-        log!("stream_count_pg", "{}", stream_count_pg);
-        log!("stream_count_ig", "{}", stream_count_ig);
+        let streams_header = StreamsHeader::read_from_binary(reader)?;
+        log!("stream_info_len", "{}", streams_header.stream_info_len());
+        log!(
+            "stream_count_video",
+            "{}",
+            streams_header.stream_count_video
+        );
+        log!(
+            "stream_count_audio",
+            "{}",
+            streams_header.stream_count_audio
+        );
+        log!("stream_count_pg", "{}", streams_header.stream_count_pg);
+        log!("stream_count_ig", "{}", streams_header.stream_count_ig);
         log!(
             "stream_count_secondary_audio",
             "{}",
-            stream_count_secondary_audio
+            streams_header.stream_count_secondary_audio
         );
         log!(
             "stream_count_secondary_video",
             "{}",
-            stream_count_secondary_video
+            streams_header.stream_count_secondary_video
         );
-        log!("stream_count_pip", "{}", stream_count_pip);
+        log!("stream_count_pip", "{}", streams_header.stream_count_pip);
 
         let mut loop_streams = |reader: &mut R, identifier: &str, len: u8| -> Result<()> {
             for i in 0..len {
-                // info!(&format!("Stream {}", identifier), "{}", i);
                 let stream = self.create_playlist_stream(reader)?;
                 if let Some(stream) = stream {
                     log!(&format!("{} Stream {}", identifier, i), "{:?}", stream);
@@ -180,20 +178,27 @@ impl Parser {
             Ok(())
         };
 
-        loop_streams(reader, "Videos", stream_count_video)?;
-        loop_streams(reader, "Audio", stream_count_audio)?;
-        loop_streams(reader, "PG", stream_count_pg)?;
-        loop_streams(reader, "IG", stream_count_ig)?;
-        loop_streams(reader, "2nd Audio", stream_count_secondary_audio)?;
+        loop_streams(reader, "Videos", streams_header.stream_count_video)?;
+        loop_streams(reader, "Audio", streams_header.stream_count_audio)?;
+        loop_streams(reader, "PG", streams_header.stream_count_pg)?;
+        loop_streams(reader, "IG", streams_header.stream_count_ig)?;
+        loop_streams(
+            reader,
+            "2nd Audio",
+            streams_header.stream_count_secondary_audio,
+        )?;
         reader.seek(SeekFrom::Current(2))?;
-        loop_streams(reader, "2nd Video", stream_count_secondary_video)?;
+        loop_streams(
+            reader,
+            "2nd Video",
+            streams_header.stream_count_secondary_video,
+        )?;
         reader.seek(SeekFrom::Current(6))?;
 
         let current_pos = reader.stream_position()?;
         reader.seek(SeekFrom::Current(
             stream_header.item_len() as i64 - (current_pos as i64 - item_start as i64) + 2,
         ))?;
-        position!(reader);
 
         Ok(())
     }
@@ -245,33 +250,16 @@ impl Parser {
             | StreamType::MPEG2_VIDEO
             | StreamType::VC1_VIDEO => {
                 let format_flags = read_u8(reader)?;
-                // TSVideoFormat videoFormat = (TSVideoFormat)(data[pos] >> 4);
                 let video_format = format_flags >> 4;
-                // TSFrameRate frameRate = (TSFrameRate)(data[pos] & 0xF);
                 let frame_rate = format_flags & 0xF;
-                // TSAspectRatio aspectRatio = (TSAspectRatio)(data[pos + 1] >> 4);
                 let aspect_ratio = read_u8(reader)? >> 4;
-                let stream = Stream::VideoStream(TSVideoStream {
+                Some(Stream::VideoStream(TSVideoStream {
                     pid,
                     stream_type,
                     video_format: video_format.into(),
                     frame_rate: frame_rate.into(),
                     aspect_ratio: aspect_ratio.into(),
-                });
-
-                // stream = new TSVideoStream();
-                // ((TSVideoStream)stream).VideoFormat = videoFormat;
-                // ((TSVideoStream)stream).AspectRatio = aspectRatio;
-                // ((TSVideoStream)stream).FrameRate = frameRate;
-                // Debug.WriteLine(string.Format(
-                //     "\t{0} {1} {2} {3} {4}",
-                //     pid,
-                //     streamType,
-                //     videoFormat,
-                //     frameRate,
-                //     aspectRatio));
-                // break;
-                Some(stream)
+                }))
             }
 
             StreamType::AC3_AUDIO
@@ -287,85 +275,37 @@ impl Parser {
             | StreamType::MPEG2_AUDIO
             | StreamType::MPEG2_AAC_AUDIO
             | StreamType::MPEG4_AAC_AUDIO => {
-                // int audioFormat = ReadByte(data, ref pos);
                 let audio_format_flags = read_u8(reader)?;
-
-                // TSChannelLayout channelLayout = (TSChannelLayout)
-                //     (audioFormat >> 4);
                 let channel_layout = audio_format_flags >> 4;
-                // TSSampleRate sampleRate = (TSSampleRate)
-                //     (audioFormat & 0xF);
                 let sample_rate = audio_format_flags & 0xF;
 
-                // string audioLanguage = ToolBox.ReadString(data, 3, ref pos);
                 let lang_code = read_string(reader, 3)?;
-                let stream = Stream::AudioStream(TSAudioStream {
+                Some(Stream::AudioStream(TSAudioStream {
                     pid,
                     stream_type,
                     channel_layout: channel_layout.into(),
                     sample_rate: sample_rate.into(),
                     lang_code,
-                });
-
-                // stream = new TSAudioStream();
-                // ((TSAudioStream)stream).ChannelLayout = channelLayout;
-                // ((TSAudioStream)stream).SampleRate = TSAudioStream.ConvertSampleRate(sampleRate);
-                // ((TSAudioStream)stream).LanguageCode = audioLanguage;
-                // Debug.WriteLine(string.Format(
-                //     "\t{0} {1} {2} {3} {4}",
-                //     pid,
-                //     streamType,
-                //     audioLanguage,
-                //     channelLayout,
-                //     sampleRate));
-                // break;
-                Some(stream)
+                }))
             }
 
             StreamType::INTERACTIVE_GRAPHICS | StreamType::PRESENTATION_GRAPHICS => {
-                // string graphicsLanguage = ToolBox.ReadString(data, 3, ref pos);
                 let lang_code = read_string(reader, 3)?;
-                let stream = Stream::GraphicsStream(TSGraphicsStream {
+                Some(Stream::GraphicsStream(TSGraphicsStream {
                     pid,
                     stream_type,
                     lang_code,
-                });
-
-                // stream = new TSGraphicsStream();
-                // ((TSGraphicsStream)stream).LanguageCode = graphicsLanguage;
-
-                // if (data[pos] != 0)
-                // {
-                // }
-                // Debug.WriteLine(string.Format(
-                //     "\t{0} {1} {2}",
-                //     pid,
-                //     streamType,
-                //     graphicsLanguage));
-                // break;
-                Some(stream)
+                }))
             }
 
             StreamType::SUBTITLE => {
-                // int code = ReadByte(data, ref pos); // TODO
                 let _code = read_u8(reader)?;
-                // string textLanguage = ToolBox.ReadString(data, 3, ref pos);
                 let lang_code = read_string(reader, 3)?;
-                let stream = Stream::TextStream(TSTextStream {
+                Some(Stream::TextStream(TSTextStream {
                     pid,
                     stream_type,
                     lang_code,
-                });
-
-                // stream = new TSTextStream();
-                // ((TSTextStream)stream).LanguageCode = textLanguage;
-                // Debug.WriteLine(string.Format(
-                //     "\t{0} {1} {2}",
-                //     pid,
-                //     streamType,
-                //     textLanguage));
-                // break;
-                Some(stream)
+                }))
             }
             _ => None,
         };

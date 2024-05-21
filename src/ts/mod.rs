@@ -7,6 +7,7 @@ pub mod plist;
 pub mod stream;
 pub mod stream_clip;
 pub mod stream_type;
+pub mod streams_header;
 
 pub trait FromBinary
 where

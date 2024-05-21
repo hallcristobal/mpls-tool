@@ -1,0 +1,44 @@
+ClipHeader // 0x22
+if multi_angle {
+    angles // 0x1
+    _pad_0 // 0x1
+    Vec<ClipAngleHeader> // 0xA * angles
+} else {
+
+}
+
+StreamsHeader {
+    stream_info_len // 0x2
+    _pad_0 // 0x2
+    stream_count_video // 0x1
+    stream_count_audio // 0x1
+    stream_count_pg // 0x1
+    stream_count_ig // 0x1
+    stream_count_secondary_audio // 0x1
+    stream_count_secondary_video // 0x1
+    stream_count_pip // 0x1
+    _pad_1 // 0x5
+}
+
+Streams {
+    Vec<VideoStream> // sizeof(VideoStream) * stream_count_video
+    Vec<AudioStream> // sizeof(AudioStream) * stream_count_audio
+    Vec<PGStream> // sizeof(PGStream) * stream_count_pg
+    Vec<IGStream> // sizeof(IGStream) * stream_count_ig
+    Vec<2ndAudioStream> // sizeof(2ndAudioStream) * stream_count_secondary_audio
+    _pad_0 // 0x2
+    loop_streams(reader, "2nd Video", stream_count_secondary_video)?;
+    Vec<2ndVideoStream> // sizeof(2ndVideoStream) * stream_count_secondary_video
+    _pad_1 // 0x6
+    ... // ?
+}
+
+////
+
+StreamHeader {
+    
+}
+
+Video Stream {
+    StreamHeader
+}
